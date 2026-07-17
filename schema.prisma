@@ -1,330 +1,701 @@
-import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+// ============================================================================
+// ZENITHIRE — DATABASE SCHEMA
+// PostgreSQL via Prisma ORM
+//
+// Design notes:
+// - Contact details are never exposed directly. Employers reach candidates
+//   only through InterviewInvitation / Conversation, matching the
+//   "invite-to-interview before contact" flow.
+// - Every video goes through VideoStatus moderation before it's public.
+// - Company accounts support multiple staff members (CompanyMember) rather
+//   than tying a company to a single login, since real recruiting teams
+//   share access.
+// - Subscriptions and Payments are separate: a Subscription is the state
+//   ("what plan, until when"), Payments are the transaction history that
+//   funds it. This keeps invoice/receipt history intact even if a plan
+//   changes.
+// ============================================================================
 
-const prisma = new PrismaClient();
-
-async function hash(password: string) {
-  return bcrypt.hash(password, 12);
+generator client {
+  provider = "prisma-client-js"
 }
 
-async function main() {
-  console.log('Seeding Zenithire sample data...');
-
-  // --- Taxonomy ---------------------------------------------------------------
-  const skillNames = ['Excel', 'Power BI', 'FP&A', 'Figma', 'UX Research', 'Node.js', 'PostgreSQL', 'AWS', 'Logistics', 'Supply Chain'];
-  const skills = await Promise.all(
-    skillNames.map((name) => prisma.skill.upsert({ where: { name }, create: { name }, update: {} })),
-  );
-
-  const industryNames = ['Financial Services', 'Supply Chain', 'Product & Design', 'Oil & Gas', 'Technology'];
-  const industries = await Promise.all(
-    industryNames.map((name) => prisma.industry.upsert({ where: { name }, create: { name }, update: {} })),
-  );
-
-  const categoryNames = ['Finance', 'Engineering', 'Design', 'Operations'];
-  const categories = await Promise.all(
-    categoryNames.map((name) => prisma.jobCategory.upsert({ where: { name }, create: { name }, update: {} })),
-  );
-
-  // --- Admin --------------------------------------------------------------------
-  await prisma.user.upsert({
-    where: { email: 'admin@zenithire.com' },
-    create: {
-      email: 'admin@zenithire.com',
-      passwordHash: await hash('ChangeMe123!'),
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      emailVerifiedAt: new Date(),
-    },
-    update: {},
-  });
-
-  // --- Employers + companies -----------------------------------------------------
-  const northbridgeOwner = await prisma.user.upsert({
-    where: { email: 'sade@northbridgecapital.com' },
-    create: {
-      email: 'sade@northbridgecapital.com',
-      passwordHash: await hash('Password123!'),
-      role: 'EMPLOYER',
-      status: 'ACTIVE',
-      emailVerifiedAt: new Date(),
-    },
-    update: {},
-  });
-
-  const northbridge = await prisma.company.upsert({
-    where: { slug: 'northbridge-capital' },
-    create: {
-      name: 'Northbridge Capital',
-      slug: 'northbridge-capital',
-      description: 'Mid-size investment firm hiring analysts and operations staff across Lagos and Abuja.',
-      city: 'Lagos',
-      country: 'Nigeria',
-      status: 'VERIFIED',
-      industryTag: 'Financial Services',
-      members: { create: { userId: northbridgeOwner.id, role: 'OWNER' } },
-    },
-    update: {},
-  });
-
-  const arclightOwner = await prisma.user.upsert({
-    where: { email: 'ifeoma@arclightstudio.com' },
-    create: {
-      email: 'ifeoma@arclightstudio.com',
-      passwordHash: await hash('Password123!'),
-      role: 'EMPLOYER',
-      status: 'ACTIVE',
-      emailVerifiedAt: new Date(),
-    },
-    update: {},
-  });
-
-  const arclight = await prisma.company.upsert({
-    where: { slug: 'arclight-studio' },
-    create: {
-      name: 'Arclight Studio',
-      slug: 'arclight-studio',
-      description: 'Remote-first product studio building tools for African fintechs.',
-      city: 'Remote',
-      country: 'Nigeria',
-      status: 'VERIFIED',
-      industryTag: 'Product & Design',
-      members: { create: { userId: arclightOwner.id, role: 'OWNER' } },
-    },
-    update: {},
-  });
-
-  // A company still awaiting admin verification, so the admin dashboard's
-  // "pending" queue isn't empty on a fresh seed.
-  const pendingOwner = await prisma.user.upsert({
-    where: { email: 'founder@newventure.com' },
-    create: {
-      email: 'founder@newventure.com',
-      passwordHash: await hash('Password123!'),
-      role: 'EMPLOYER',
-      status: 'ACTIVE',
-      emailVerifiedAt: new Date(),
-    },
-    update: {},
-  });
-
-  await prisma.company.upsert({
-    where: { slug: 'new-venture-logistics' },
-    create: {
-      name: 'New Venture Logistics',
-      slug: 'new-venture-logistics',
-      description: 'Early-stage logistics startup.',
-      status: 'PENDING',
-      members: { create: { userId: pendingOwner.id, role: 'OWNER' } },
-    },
-    update: {},
-  });
-
-  // --- Jobs -----------------------------------------------------------------------
-  const commercialAnalyst = await prisma.job.create({
-    data: {
-      companyId: northbridge.id,
-      postedById: northbridgeOwner.id,
-      title: 'Commercial Analyst',
-      description: 'Support commercial strategy and financial planning across our portfolio companies.',
-      responsibilities: 'Build financial models. Partner with deal teams. Present to leadership.',
-      requirements: '3+ years in financial analysis. Advanced Excel. FP&A experience preferred.',
-      salaryMin: 450_000,
-      salaryMax: 650_000,
-      salaryCurrency: 'NGN',
-      employmentType: 'FULL_TIME',
-      workMode: 'ON_SITE',
-      city: 'Lagos',
-      country: 'Nigeria',
-      categoryId: categories.find((c) => c.name === 'Finance')?.id,
-      status: 'PUBLISHED',
-      skills: { create: [skills[0], skills[2]].map((s) => ({ skillId: s.id })) },
-    },
-  });
-
-  const backendRole = await prisma.job.create({
-    data: {
-      companyId: northbridge.id,
-      postedById: northbridgeOwner.id,
-      title: 'Backend Engineer (Node.js)',
-      description: 'Build and maintain internal tooling used across the firm.',
-      responsibilities: 'Own services end to end. Review code. Participate in on-call.',
-      requirements: 'Strong Node.js and PostgreSQL experience. AWS familiarity a plus.',
-      salaryMin: 600_000,
-      salaryMax: 900_000,
-      salaryCurrency: 'NGN',
-      employmentType: 'FULL_TIME',
-      workMode: 'ON_SITE',
-      city: 'Abuja',
-      country: 'Nigeria',
-      categoryId: categories.find((c) => c.name === 'Engineering')?.id,
-      status: 'PUBLISHED',
-      skills: { create: [skills[5], skills[6], skills[7]].map((s) => ({ skillId: s.id })) },
-    },
-  });
-
-  const designRole = await prisma.job.create({
-    data: {
-      companyId: arclight.id,
-      postedById: arclightOwner.id,
-      title: 'Senior Product Designer',
-      description: 'Lead product design for our core fintech dashboard product.',
-      responsibilities: 'Own the design system. Run user research. Ship polished UI.',
-      requirements: '5+ years product design. Strong portfolio. Figma fluency.',
-      salaryMin: 2200,
-      salaryMax: 3000,
-      salaryCurrency: 'USD',
-      employmentType: 'CONTRACT',
-      workMode: 'REMOTE',
-      country: 'Nigeria',
-      categoryId: categories.find((c) => c.name === 'Design')?.id,
-      status: 'PUBLISHED',
-      skills: { create: [skills[3], skills[4]].map((s) => ({ skillId: s.id })) },
-    },
-  });
-
-  // --- Candidates -----------------------------------------------------------------
-  const amakaUser = await prisma.user.upsert({
-    where: { email: 'amaka.obi@example.com' },
-    create: {
-      email: 'amaka.obi@example.com',
-      passwordHash: await hash('Password123!'),
-      role: 'CANDIDATE',
-      status: 'ACTIVE',
-      emailVerifiedAt: new Date(),
-    },
-    update: {},
-  });
-
-  const amakaProfile = await prisma.candidateProfile.upsert({
-    where: { userId: amakaUser.id },
-    create: {
-      userId: amakaUser.id,
-      fullName: 'Amaka Obi',
-      headline: 'Financial Analyst · 5 yrs experience',
-      bio: 'Financial analyst with a track record of building models that hold up under scrutiny.',
-      yearsExperience: 5,
-      expectedSalaryMin: 500_000,
-      expectedSalaryMax: 700_000,
-      salaryCurrency: 'NGN',
-      city: 'Lagos',
-      country: 'Nigeria',
-      openToRemote: false,
-      profileCompletion: 75,
-      education: {
-        create: [
-          {
-            institution: 'University of Lagos',
-            degree: 'BSc',
-            fieldOfStudy: 'Economics',
-            startDate: new Date('2015-09-01'),
-            endDate: new Date('2019-07-01'),
-          },
-        ],
-      },
-      workExperience: {
-        create: [
-          {
-            company: 'Stanbic IBTC',
-            title: 'Financial Analyst',
-            description: 'Built monthly forecasting models for the retail banking division.',
-            startDate: new Date('2020-02-01'),
-            isCurrent: true,
-          },
-        ],
-      },
-      skills: { create: [skills[0], skills[1], skills[2]].map((s) => ({ skillId: s.id })) },
-      industries: { create: [industries[0]].map((i) => ({ industryId: i.id })) },
-    },
-    update: {},
-  });
-
-  const tundeUser = await prisma.user.upsert({
-    where: { email: 'tunde.e@example.com' },
-    create: {
-      email: 'tunde.e@example.com',
-      passwordHash: await hash('Password123!'),
-      role: 'CANDIDATE',
-      status: 'ACTIVE',
-      emailVerifiedAt: new Date(),
-    },
-    update: {},
-  });
-
-  const tundeProfile = await prisma.candidateProfile.upsert({
-    where: { userId: tundeUser.id },
-    create: {
-      userId: tundeUser.id,
-      fullName: 'Tunde Eze',
-      headline: 'Product Designer · 3 yrs experience',
-      bio: 'Product designer focused on fintech and financial inclusion products.',
-      yearsExperience: 3,
-      city: 'Remote',
-      country: 'Nigeria',
-      openToRemote: true,
-      profileCompletion: 60,
-      skills: { create: [skills[3], skills[4]].map((s) => ({ skillId: s.id })) },
-      industries: { create: [industries[2]].map((i) => ({ industryId: i.id })) },
-    },
-    update: {},
-  });
-
-  // --- Applications + one accepted interview invitation ---------------------------
-  const application = await prisma.application.upsert({
-    where: { jobId_candidateId: { jobId: commercialAnalyst.id, candidateId: amakaProfile.id } },
-    create: { jobId: commercialAnalyst.id, candidateId: amakaProfile.id, status: 'SHORTLISTED' },
-    update: {},
-  });
-
-  await prisma.application.upsert({
-    where: { jobId_candidateId: { jobId: designRole.id, candidateId: tundeProfile.id } },
-    create: { jobId: designRole.id, candidateId: tundeProfile.id, status: 'SUBMITTED' },
-    update: {},
-  });
-
-  const invitation = await prisma.interviewInvitation.create({
-    data: {
-      applicationId: application.id,
-      candidateId: amakaProfile.id,
-      sentById: northbridgeOwner.id,
-      receivedById: amakaUser.id,
-      message: "We'd love to talk through your FP&A background — are you free this week?",
-      proposedTimes: [new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)],
-      status: 'ACCEPTED',
-      respondedAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  await prisma.conversation.upsert({
-    where: {
-      participantAId_participantBId: { participantAId: northbridgeOwner.id, participantBId: amakaUser.id },
-    },
-    create: {
-      participantAId: northbridgeOwner.id,
-      participantBId: amakaUser.id,
-      invitationId: invitation.id,
-      messages: {
-        create: [
-          { senderId: northbridgeOwner.id, body: 'Great, see you at 10am on Tuesday then.' },
-          { senderId: amakaUser.id, body: 'Sounds good, looking forward to it!' },
-        ],
-      },
-    },
-    update: {},
-  });
-
-  console.log('Seed complete.');
-  console.log('  Admin login:    admin@zenithire.com / ChangeMe123!');
-  console.log('  Employer login: sade@northbridgecapital.com / Password123!');
-  console.log('  Candidate login: amaka.obi@example.com / Password123!');
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+
+enum Role {
+  CANDIDATE
+  EMPLOYER
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum CompanyMemberRole {
+  OWNER
+  RECRUITER
+}
+
+enum CompanyStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum VideoStatus {
+  PROCESSING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
+}
+
+enum WorkMode {
+  REMOTE
+  ON_SITE
+  HYBRID
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  EXPIRED
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  VIEWED
+  SHORTLISTED
+  REJECTED
+  HIRED
+  WITHDRAWN
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum MessageAttachmentType {
+  IMAGE
+  PDF
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  INTERVIEW_INVITE
+  PROFILE_VIEW
+  APPLICATION_UPDATE
+  SUBSCRIPTION_EXPIRY
+  PAYMENT
+  VIDEO_APPROVED
+  VIDEO_REJECTED
+  COMPANY_VERIFIED
+}
+
+enum SubscriptionPlan {
+  CANDIDATE_FREE
+  CANDIDATE_PREMIUM
+  EMPLOYER_FREE
+  EMPLOYER_PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  FLUTTERWAVE
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum ReportTargetType {
+  CANDIDATE_PROFILE
+  COMPANY
+  JOB
+  MESSAGE
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+// ----------------------------------------------------------------------------
+// AUTH / CORE USER
+// ----------------------------------------------------------------------------
+
+model User {
+  id                String        @id @default(uuid())
+  email             String        @unique
+  passwordHash      String
+  role              Role
+  status            AccountStatus @default(PENDING_VERIFICATION)
+
+  emailVerifiedAt   DateTime?
+  emailVerifyToken  String?       @unique
+  passwordResetToken String?      @unique
+  passwordResetExpiresAt DateTime?
+
+  refreshTokenHash  String?       // current valid refresh token, rotated on use
+  lastLoginAt       DateTime?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  candidateProfile  CandidateProfile?
+  companyMemberships CompanyMember[]
+
+  savedJobs         SavedJob[]
+  savedCandidates   SavedCandidate[]
+
+  sentInvitations       InterviewInvitation[] @relation("InvitationsSent")
+  receivedInvitations   InterviewInvitation[] @relation("InvitationsReceived")
+
+  conversationsAsA  Conversation[] @relation("ConversationParticipantA")
+  conversationsAsB  Conversation[] @relation("ConversationParticipantB")
+  messages          Message[]
+
+  notifications     Notification[]
+  subscriptions     Subscription[]
+  payments          Payment[]
+  reportsFiled      Report[]       @relation("ReportsFiled")
+  auditLogs         AuditLog[]
+  blogPosts         BlogPost[]
+
+  @@index([role, status])
+}
+
+// ----------------------------------------------------------------------------
+// CANDIDATE SIDE
+// ----------------------------------------------------------------------------
+
+model CandidateProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName          String
+  headline          String?               // e.g. "Financial Analyst · 5 yrs experience"
+  photoUrl          String?
+  cvUrl             String?
+  cvFileName        String?
+
+  bio               String?  @db.Text
+  yearsExperience   Int?
+  expectedSalaryMin Int?
+  expectedSalaryMax Int?
+  salaryCurrency    String   @default("NGN")
+  availableFrom     DateTime?
+
+  city              String?
+  country           String?
+  latitude          Float?
+  longitude         Float?
+  openToRemote      Boolean  @default(false)
+
+  isFeatured        Boolean  @default(false)   // premium: featured profile
+  profileViews      Int      @default(0)
+  profileCompletion Int      @default(0)       // 0–100, recomputed on save
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  currentVideo      IntroVideo?  @relation("CurrentVideo", fields: [currentVideoId], references: [id])
+  currentVideoId    String?      @unique
+  videos            IntroVideo[] @relation("AllVideos")
+
+  education         Education[]
+  workExperience    WorkExperience[]
+  certifications    Certification[]
+  skills            CandidateSkill[]
+  industries        CandidateIndustry[]
+
+  applications      Application[]
+  savedByEmployers  SavedCandidate[]
+  invitationsReceived InterviewInvitation[] @relation("CandidateInvitations")
+
+  @@index([city, country])
+  @@index([isFeatured])
+}
+
+model IntroVideo {
+  id           String      @id @default(uuid())
+  candidateId  String
+  candidate    CandidateProfile @relation("AllVideos", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  originalUrl  String
+  playbackUrl  String?     // compressed/streaming-ready version
+  thumbnailUrl String?
+  durationSecs Int         // enforced <= 60 at upload time
+  status       VideoStatus @default(PROCESSING)
+  rejectionReason String?
+
+  uploadedAt   DateTime    @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?     // admin user id
+
+  currentFor   CandidateProfile? @relation("CurrentVideo")
+
+  @@index([status])
+}
+
+model Education {
+  id            String   @id @default(uuid())
+  candidateId   String
+  candidate     CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  institution   String
+  degree        String
+  fieldOfStudy  String?
+  startDate     DateTime
+  endDate       DateTime?
+  isOngoing     Boolean  @default(false)
+}
+
+model WorkExperience {
+  id            String   @id @default(uuid())
+  candidateId   String
+  candidate     CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  company       String
+  title         String
+  description   String?  @db.Text
+  startDate     DateTime
+  endDate       DateTime?
+  isCurrent     Boolean  @default(false)
+}
+
+model Certification {
+  id            String    @id @default(uuid())
+  candidateId   String
+  candidate     CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  name          String
+  issuer        String?
+  issuedAt      DateTime?
+  expiresAt     DateTime?
+  credentialUrl String?
+}
+
+model Skill {
+  id          String @id @default(uuid())
+  name        String @unique
+  candidates  CandidateSkill[]
+  jobs        JobSkill[]
+}
+
+model CandidateSkill {
+  candidateId String
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  skillId     String
+  skill       Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, skillId])
+}
+
+model Industry {
+  id          String @id @default(uuid())
+  name        String @unique
+  candidates  CandidateIndustry[]
+  jobs        Job[]
+}
+
+model CandidateIndustry {
+  candidateId String
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  industryId  String
+  industry    Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, industryId])
+}
+
+// ----------------------------------------------------------------------------
+// EMPLOYER SIDE
+// ----------------------------------------------------------------------------
+
+model Company {
+  id              String        @id @default(uuid())
+  name            String
+  slug            String        @unique
+  logoUrl         String?
+  description     String?       @db.Text
+  website         String?
+  industryTag     String?
+  city            String?
+  country          String?
+  latitude        Float?
+  longitude       Float?
+
+  status          CompanyStatus @default(PENDING)
+  rejectionReason String?
+  isFeatured      Boolean       @default(false)
+
+  registrationDocUrl String?    // uploaded for verification
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  members         CompanyMember[]
+  jobs            Job[]
+  savedCandidates SavedCandidate[]
+
+  @@index([status])
+}
+
+model CompanyMember {
+  id         String            @id @default(uuid())
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role       CompanyMemberRole @default(RECRUITER)
+  joinedAt   DateTime          @default(now())
+
+  @@unique([userId, companyId])
+}
+
+// ----------------------------------------------------------------------------
+// JOBS
+// ----------------------------------------------------------------------------
+
+model Job {
+  id               String         @id @default(uuid())
+  companyId        String
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  postedById       String
+
+  title            String
+  description      String         @db.Text
+  responsibilities String         @db.Text
+  requirements     String         @db.Text
+
+  salaryMin        Int?
+  salaryMax        Int?
+  salaryCurrency   String         @default("NGN")
+
+  employmentType   EmploymentType
+  workMode         WorkMode
+  city             String?
+  country          String?
+
+  industryId       String?
+  industry         Industry?      @relation(fields: [industryId], references: [id])
+  categoryId       String?
+  category         JobCategory?   @relation(fields: [categoryId], references: [id])
+
+  applicationDeadline DateTime?
+  status           JobStatus      @default(DRAFT)
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  skills           JobSkill[]
+  applications     Application[]
+  savedBy          SavedJob[]
+
+  @@index([status, employmentType, workMode])
+  @@index([city, country])
+}
+
+model JobCategory {
+  id    String @id @default(uuid())
+  name  String @unique
+  jobs  Job[]
+}
+
+model JobSkill {
+  jobId   String
+  job     Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skillId String
+  skill   Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, skillId])
+}
+
+model Application {
+  id           String            @id @default(uuid())
+  jobId        String
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidateId  String
+  candidate    CandidateProfile  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  status       ApplicationStatus @default(SUBMITTED)
+  coverNote    String?           @db.Text
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  invitation   InterviewInvitation?
+
+  @@unique([jobId, candidateId])
+  @@index([status])
+}
+
+model SavedJob {
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  savedAt   DateTime @default(now())
+
+  @@id([userId, jobId])
+}
+
+model SavedCandidate {
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidateId  String
+  candidate    CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  savedById    String
+  savedBy      User    @relation(fields: [savedById], references: [id], onDelete: Cascade)
+  savedAt      DateTime @default(now())
+
+  @@id([companyId, candidateId])
+}
+
+// ----------------------------------------------------------------------------
+// INTERVIEW INVITATIONS
+// Core privacy mechanism: no direct contact info exchange until accepted.
+// ----------------------------------------------------------------------------
+
+model InterviewInvitation {
+  id             String           @id @default(uuid())
+
+  applicationId  String?          @unique
+  application    Application?     @relation(fields: [applicationId], references: [id])
+
+  candidateId    String
+  candidate      CandidateProfile @relation("CandidateInvitations", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  sentById       String           // employer user
+  sentBy         User             @relation("InvitationsSent", fields: [sentById], references: [id])
+  receivedById   String           // candidate's user id, for convenient inbox queries
+  receivedBy     User             @relation("InvitationsReceived", fields: [receivedById], references: [id])
+
+  message        String?          @db.Text
+  proposedTimes  DateTime[]
+
+  status         InvitationStatus @default(PENDING)
+  respondedAt    DateTime?
+  expiresAt      DateTime
+
+  conversation   Conversation?
+
+  createdAt      DateTime         @default(now())
+
+  @@index([status])
+}
+
+// ----------------------------------------------------------------------------
+// MESSAGING
+// ----------------------------------------------------------------------------
+
+model Conversation {
+  id               String   @id @default(uuid())
+
+  participantAId   String
+  participantA     User     @relation("ConversationParticipantA", fields: [participantAId], references: [id])
+  participantBId   String
+  participantB     User     @relation("ConversationParticipantB", fields: [participantBId], references: [id])
+
+  invitationId     String?  @unique
+  invitation       InterviewInvitation? @relation(fields: [invitationId], references: [id])
+
+  lastMessageAt    DateTime?
+  createdAt        DateTime @default(now())
+
+  messages         Message[]
+
+  @@unique([participantAId, participantBId])
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User      @relation(fields: [senderId], references: [id])
+
+  body           String?   @db.Text
+  attachmentUrl  String?
+  attachmentType MessageAttachmentType?
+
+  deliveredAt    DateTime  @default(now())
+  readAt         DateTime?
+
+  createdAt      DateTime  @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// NOTIFICATIONS
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String?
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+}
+
+// ----------------------------------------------------------------------------
+// SUBSCRIPTIONS & PAYMENTS
+// ----------------------------------------------------------------------------
+
+model Subscription {
+  id           String             @id @default(uuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         SubscriptionPlan
+  status       SubscriptionStatus @default(ACTIVE)
+
+  startedAt    DateTime           @default(now())
+  currentPeriodEnd DateTime
+  cancelAtPeriodEnd Boolean       @default(false)
+
+  provider     PaymentProvider?
+  providerSubscriptionId String?  // external subscription/reference id for auto-renewal
+
+  payments     Payment[]
+
+  @@index([userId, status])
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId   String?
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  provider         PaymentProvider
+  providerReference String       @unique
+  amount           Int           // minor units (kobo / cents)
+  currency         String        @default("NGN")
+  status           PaymentStatus @default(PENDING)
+
+  invoiceUrl       String?
+  receiptUrl       String?
+
+  createdAt        DateTime      @default(now())
+  paidAt           DateTime?
+
+  @@index([userId, status])
+}
+
+// ----------------------------------------------------------------------------
+// TRUST & SAFETY
+// ----------------------------------------------------------------------------
+
+model Report {
+  id           String           @id @default(uuid())
+  filedById    String
+  filedBy      User             @relation("ReportsFiled", fields: [filedById], references: [id])
+
+  targetType   ReportTargetType
+  targetId     String           // polymorphic reference (CandidateProfile.id / Company.id / Job.id / Message.id)
+  reason       String
+  details      String?          @db.Text
+
+  status       ReportStatus     @default(OPEN)
+  resolutionNote String?
+  resolvedById String?
+  resolvedAt   DateTime?
+
+  createdAt    DateTime         @default(now())
+
+  @@index([targetType, targetId])
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String   // e.g. "VIDEO_APPROVED", "COMPANY_SUSPENDED"
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// CONTENT: BLOG / ADS / SETTINGS
+// ----------------------------------------------------------------------------
+
+model BlogPost {
+  id          String   @id @default(uuid())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String   @db.Text
+  coverImageUrl String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Advertisement {
+  id          String   @id @default(uuid())
+  title       String
+  imageUrl    String
+  targetUrl   String
+  placement   String   // e.g. "HOME_HERO_BANNER", "SEARCH_SIDEBAR"
+  startsAt    DateTime
+  endsAt      DateTime
+  isActive    Boolean  @default(true)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+}
+
+model SystemSetting {
+  key         String   @id
+  value       String   @db.Text
+  updatedAt   DateTime @updatedAt
+}
