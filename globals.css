@@ -1,0 +1,566 @@
+'use client';
+
+import React, { useState } from "react";
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  Video,
+  Flag,
+  Briefcase,
+  FileText,
+  Settings,
+  Menu,
+  X,
+  CheckCircle2,
+  XCircle,
+  Ban,
+  Play,
+  Search,
+  TrendingUp,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+
+const NAVY = "#0B1F3A";
+const NAVY_DEEP = "#071427";
+const GOLD = "#D4AF37";
+const GOLD_SOFT = "#E8CD7A";
+const IVORY = "#FBF8F0";
+const GRAY_BG = "#F5F6F8";
+
+const FONTS = (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    .font-display { font-family: 'Fraunces', serif; }
+    .font-mono { font-family: 'IBM Plex Mono', monospace; }
+    .font-body { font-family: 'Inter', sans-serif; }
+  `}</style>
+);
+
+// ---------------------------------------------------------------------------
+// Mock data — stands in for GET /admin/dashboard/overview, /admin/companies,
+// /admin/candidates+employers, /videos/admin/pending, /admin/reports, /admin/jobs
+// ---------------------------------------------------------------------------
+
+const OVERVIEW = {
+  candidates: 18400, employers: 3150, companiesPending: 3, videosPending: 7,
+  openReports: 4, revenueThisMonth: 8_450_000, activeSubscriptions: 612,
+};
+
+const SIGNUPS = [
+  { day: "Jun 8", signups: 42 }, { day: "Jun 12", signups: 58 }, { day: "Jun 16", signups: 51 },
+  { day: "Jun 20", signups: 74 }, { day: "Jun 24", signups: 69 }, { day: "Jun 28", signups: 88 },
+  { day: "Jul 2", signups: 103 }, { day: "Jul 5", signups: 91 },
+];
+
+const PENDING_COMPANIES = [
+  { id: 1, name: "New Venture Logistics", owner: "founder@newventure.com", submitted: "Jul 3" },
+  { id: 2, name: "Bright Path Consulting", owner: "hello@brightpath.com", submitted: "Jul 4" },
+  { id: 3, name: "Vertex Analytics", owner: "team@vertex.io", submitted: "Jul 5" },
+];
+
+const USERS = [
+  { id: 1, name: "Amaka Obi", email: "amaka.obi@example.com", role: "CANDIDATE", status: "ACTIVE", joined: "Jun 10" },
+  { id: 2, name: "Tunde Eze", email: "tunde.e@example.com", role: "CANDIDATE", status: "ACTIVE", joined: "Jun 15" },
+  { id: 3, name: "Sade K.", email: "sade@northbridgecapital.com", role: "EMPLOYER", status: "ACTIVE", joined: "May 22" },
+  { id: 4, name: "Chinedu O.", email: "chinedu.o@example.com", role: "CANDIDATE", status: "SUSPENDED", joined: "Apr 8" },
+];
+
+const PENDING_VIDEOS = [
+  { id: 1, candidate: "Bola A.", role: "Operations Manager", duration: "0:52", uploaded: "2h ago" },
+  { id: 2, candidate: "Ngozi T.", role: "Marketing Lead", duration: "1:00", uploaded: "5h ago" },
+  { id: 3, candidate: "Femi O.", role: "Data Analyst", duration: "0:47", uploaded: "1d ago" },
+];
+
+const REPORTS = [
+  { id: 1, targetType: "JOB", target: "\"Easy $5000/week, no experience\"", filedBy: "amaka.obi@example.com", reason: "Looks like a scam posting", status: "OPEN" },
+  { id: 2, targetType: "CANDIDATE_PROFILE", target: "Profile #8821", filedBy: "sade@northbridgecapital.com", reason: "Suspected fake profile / stock photo", status: "OPEN" },
+  { id: 3, targetType: "MESSAGE", target: "Conversation #441", filedBy: "tunde.e@example.com", reason: "Inappropriate message", status: "REVIEWING" },
+];
+
+const JOBS = [
+  { id: 1, title: "Commercial Analyst", company: "Northbridge Capital", status: "PUBLISHED", applicants: 18 },
+  { id: 2, title: "Easy $5000/week, no experience", company: "QuickCash Ventures", status: "PUBLISHED", applicants: 240 },
+  { id: 3, title: "Senior Product Designer", company: "Arclight Studio", status: "PUBLISHED", applicants: 31 },
+];
+
+const NAV_ITEMS = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "companies", label: "Companies", icon: Building2, badge: PENDING_COMPANIES.length },
+  { key: "users", label: "Users", icon: Users },
+  { key: "videos", label: "Videos", icon: Video, badge: PENDING_VIDEOS.length },
+  { key: "reports", label: "Reports", icon: Flag, badge: REPORTS.filter((r) => r.status === "OPEN").length },
+  { key: "jobs", label: "Jobs", icon: Briefcase },
+  { key: "content", label: "Content", icon: FileText },
+  { key: "settings", label: "Settings", icon: Settings },
+];
+
+// ---------------------------------------------------------------------------
+
+function SectionHeader({ kicker, title, action }) {
+  return (
+    <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <div className="font-mono text-xs uppercase tracking-wider mb-1" style={{ color: GOLD }}>{kicker}</div>
+        <h2 className="font-display text-2xl font-semibold" style={{ color: NAVY }}>{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, accent }) {
+  return (
+    <div className="rounded-2xl p-5 bg-white border border-gray-100 shadow-sm flex items-center gap-4">
+      <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: accent ? "#FBEAEA" : IVORY }}>
+        <Icon size={20} style={{ color: accent ? "#D92D20" : GOLD }} />
+      </div>
+      <div>
+        <div className="font-display text-2xl font-semibold" style={{ color: NAVY }}>{value}</div>
+        <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function Pill({ tone, children }) {
+  const tones = {
+    green: { bg: "#E7F6EC", fg: "#15803D" },
+    red: { bg: "#FBEAEA", fg: "#B42318" },
+    gray: { bg: "#EEF0F3", fg: "#5b6572" },
+    gold: { bg: IVORY, fg: GOLD },
+  };
+  const t = tones[tone] ?? tones.gray;
+  return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: t.bg, color: t.fg }}>
+      {children}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function OverviewView() {
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Candidates" value={OVERVIEW.candidates.toLocaleString()} icon={Users} />
+        <StatCard label="Employers" value={OVERVIEW.employers.toLocaleString()} icon={Building2} />
+        <StatCard label="Companies pending" value={OVERVIEW.companiesPending} icon={AlertTriangle} accent />
+        <StatCard label="Videos pending" value={OVERVIEW.videosPending} icon={Video} accent />
+        <StatCard label="Open reports" value={OVERVIEW.openReports} icon={Flag} accent />
+        <StatCard label="Active subscriptions" value={OVERVIEW.activeSubscriptions} icon={TrendingUp} />
+        <StatCard label="Revenue this month" value={`₦${(OVERVIEW.revenueThisMonth / 1_000_000).toFixed(1)}M`} icon={DollarSign} />
+      </div>
+
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h3 className="font-semibold text-sm mb-4" style={{ color: NAVY }}>Signups — last 30 days</h3>
+        <div style={{ width: "100%", height: 220 }}>
+          <ResponsiveContainer>
+            <AreaChart data={SIGNUPS} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="signupsGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={GOLD} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF0F3" />
+              <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9AA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9AA3AF" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #EEF0F3", fontSize: 12 }} />
+              <Area type="monotone" dataKey="signups" stroke={GOLD} strokeWidth={2} fill="url(#signupsGrad)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompaniesView() {
+  const [items, setItems] = useState(PENDING_COMPANIES);
+  const act = (id) => setItems((prev) => prev.filter((c) => c.id !== id));
+
+  return (
+    <div>
+      <SectionHeader kicker="Verification queue" title="Companies awaiting review" />
+      {items.length === 0 ? (
+        <div className="text-sm text-gray-400 italic py-12 text-center rounded-2xl border border-gray-100 bg-white">
+          No companies waiting on review.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((c) => (
+            <div key={c.id} className="rounded-2xl border border-gray-100 bg-white p-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center font-display font-semibold flex-shrink-0" style={{ background: IVORY, color: GOLD }}>
+                  {c.name[0]}
+                </div>
+                <div>
+                  <div className="font-semibold text-sm" style={{ color: NAVY }}>{c.name}</div>
+                  <div className="text-xs text-gray-500">{c.owner} · submitted {c.submitted}</div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => act(c.id)} className="px-4 py-2 rounded-full text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50">
+                  Reject
+                </button>
+                <button onClick={() => act(c.id)} className="px-4 py-2 rounded-full text-xs font-semibold" style={{ background: GOLD, color: NAVY_DEEP }}>
+                  Verify
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UsersView() {
+  const [filter, setFilter] = useState("ALL");
+  const filtered = filter === "ALL" ? USERS : USERS.filter((u) => u.role === filter);
+
+  return (
+    <div>
+      <SectionHeader
+        kicker="Account moderation"
+        title="Candidates & employers"
+        action={
+          <div className="flex gap-2">
+            {["ALL", "CANDIDATE", "EMPLOYER"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className="text-xs font-semibold px-3.5 py-2 rounded-full"
+                style={{ background: filter === f ? NAVY : "white", color: filter === f ? "white" : "#6B7280", border: "1px solid rgba(11,31,58,0.12)" }}
+              >
+                {f === "ALL" ? "All" : f.charAt(0) + f.slice(1).toLowerCase() + "s"}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
+        {filtered.map((u) => (
+          <div key={u.id} className="p-5 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-display font-semibold text-sm flex-shrink-0" style={{ background: IVORY, color: GOLD }}>
+                {u.name[0]}
+              </div>
+              <div>
+                <div className="text-sm font-semibold" style={{ color: NAVY }}>{u.name}</div>
+                <div className="text-xs text-gray-500">{u.email} · joined {u.joined}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Pill tone="gray">{u.role}</Pill>
+              <Pill tone={u.status === "ACTIVE" ? "green" : "red"}>{u.status}</Pill>
+              {u.status === "ACTIVE" ? (
+                <button className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 text-gray-500 flex items-center gap-1">
+                  <Ban size={12} /> Suspend
+                </button>
+              ) : (
+                <button className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>
+                  Reinstate
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VideosView() {
+  const [items, setItems] = useState(PENDING_VIDEOS);
+  const act = (id) => setItems((prev) => prev.filter((v) => v.id !== id));
+
+  return (
+    <div>
+      <SectionHeader kicker="Content moderation" title="Videos awaiting review" />
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {items.map((v) => (
+          <div key={v.id} className="rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm">
+            <div className="relative aspect-[4/3] flex items-center justify-center" style={{ background: `linear-gradient(135deg, #12294d, ${NAVY})` }}>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
+                <Play size={20} style={{ color: GOLD_SOFT, marginLeft: 2 }} />
+              </div>
+              <span className="absolute bottom-3 right-3 font-mono text-xs px-2 py-1 rounded-md text-white" style={{ background: "rgba(7,20,39,0.65)" }}>{v.duration}</span>
+            </div>
+            <div className="p-5">
+              <div className="text-sm font-semibold" style={{ color: NAVY }}>{v.candidate}</div>
+              <div className="text-xs text-gray-500 mb-4">{v.role} · uploaded {v.uploaded}</div>
+              <div className="flex gap-2">
+                <button onClick={() => act(v.id)} className="flex-1 text-xs font-semibold py-2 rounded-full border border-gray-200 text-gray-500 flex items-center justify-center gap-1">
+                  <XCircle size={13} /> Reject
+                </button>
+                <button onClick={() => act(v.id)} className="flex-1 text-xs font-semibold py-2 rounded-full flex items-center justify-center gap-1" style={{ background: GOLD, color: NAVY_DEEP }}>
+                  <CheckCircle2 size={13} /> Approve
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="col-span-full text-sm text-gray-400 italic py-12 text-center rounded-2xl border border-gray-100 bg-white">
+            No videos waiting on review.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReportsView() {
+  const [items, setItems] = useState(REPORTS);
+  const resolve = (id) => setItems((prev) => prev.map((r) => (r.id === id ? { ...r, status: "RESOLVED" } : r)));
+  const dismiss = (id) => setItems((prev) => prev.map((r) => (r.id === id ? { ...r, status: "DISMISSED" } : r)));
+
+  return (
+    <div>
+      <SectionHeader kicker="Trust & safety" title="Reports" />
+      <div className="space-y-3">
+        {items.map((r) => (
+          <div key={r.id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Pill tone="gray">{r.targetType.replace("_", " ")}</Pill>
+                  <Pill tone={r.status === "OPEN" ? "red" : r.status === "REVIEWING" ? "gold" : "green"}>{r.status}</Pill>
+                </div>
+                <div className="text-sm font-semibold" style={{ color: NAVY }}>{r.target}</div>
+                <div className="text-xs text-gray-500 mt-1">"{r.reason}" — filed by {r.filedBy}</div>
+              </div>
+              {(r.status === "OPEN" || r.status === "REVIEWING") && (
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => dismiss(r.id)} className="px-4 py-2 rounded-full text-xs font-semibold border border-gray-200 text-gray-500">
+                    Dismiss
+                  </button>
+                  <button onClick={() => resolve(r.id)} className="px-4 py-2 rounded-full text-xs font-semibold" style={{ background: GOLD, color: NAVY_DEEP }}>
+                    Resolve
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JobsView() {
+  return (
+    <div>
+      <SectionHeader
+        kicker="Platform-wide"
+        title="All jobs"
+        action={
+          <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2">
+            <Search size={14} className="text-gray-400" />
+            <input placeholder="Search jobs..." className="text-sm outline-none bg-transparent" />
+          </div>
+        }
+      />
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
+        {JOBS.map((j) => (
+          <div key={j.id} className="p-5 flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-sm font-semibold" style={{ color: NAVY }}>{j.title}</div>
+              <div className="text-xs text-gray-500">{j.company} · {j.applicants} applicants</div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Pill tone="green">{j.status}</Pill>
+              <button className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 text-gray-500">
+                Force close
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContentView() {
+  const [tab, setTab] = useState("blog");
+  return (
+    <div>
+      <SectionHeader
+        kicker="Marketing content"
+        title="Blog & advertisements"
+        action={
+          <div className="flex gap-2">
+            {["blog", "ads"].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="text-xs font-semibold px-3.5 py-2 rounded-full capitalize"
+                style={{ background: tab === t ? NAVY : "white", color: tab === t ? "white" : "#6B7280", border: "1px solid rgba(11,31,58,0.12)" }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      {tab === "blog" ? (
+        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
+          {[
+            { title: "5 Ways to Make Your 60-Second Video Stand Out", status: "Published" },
+            { title: "How Northbridge Capital Cut Screening Time in Half", status: "Draft" },
+          ].map((p, i) => (
+            <div key={i} className="p-5 flex items-center justify-between">
+              <span className="text-sm font-medium" style={{ color: NAVY }}>{p.title}</span>
+              <Pill tone={p.status === "Published" ? "green" : "gray"}>{p.status}</Pill>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
+          {[
+            { title: "Homepage hero banner", impressions: "12,400", clicks: "318" },
+            { title: "Search sidebar — recruiter tools", impressions: "8,120", clicks: "94" },
+          ].map((a, i) => (
+            <div key={i} className="p-5 flex items-center justify-between">
+              <span className="text-sm font-medium" style={{ color: NAVY }}>{a.title}</span>
+              <span className="text-xs text-gray-400 font-mono">{a.impressions} views · {a.clicks} clicks</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsView() {
+  return (
+    <div>
+      <SectionHeader kicker="Platform configuration" title="System settings" />
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
+        {[
+          { key: "support_email", value: "support@zenithire.com" },
+          { key: "maintenance_mode", value: "false" },
+          { key: "featured_placement_price_ngn", value: "15000" },
+        ].map((s) => (
+          <div key={s.key} className="p-5 flex items-center justify-between gap-4 flex-wrap">
+            <span className="font-mono text-sm" style={{ color: NAVY }}>{s.key}</span>
+            <input
+              defaultValue={s.value}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none w-64"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const VIEWS = {
+  overview: OverviewView,
+  companies: CompaniesView,
+  users: UsersView,
+  videos: VideosView,
+  reports: ReportsView,
+  jobs: JobsView,
+  content: ContentView,
+  settings: SettingsView,
+};
+
+export default function AdminDashboard() {
+  const [active, setActive] = useState("overview");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const ActiveView = VIEWS[active];
+
+  return (
+    <div className="min-h-screen font-body" style={{ background: GRAY_BG }}>
+      {FONTS}
+
+      <div className="md:hidden flex items-center justify-between px-4 py-3 sticky top-0 z-30" style={{ background: NAVY_DEEP }}>
+        <div className="flex items-center gap-2 text-white font-display font-semibold">
+          <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
+            <span className="w-3.5 h-3.5 rounded-full" style={{ background: NAVY }} />
+          </span>
+          Zenithire <span className="text-xs font-mono opacity-50">/ admin</span>
+        </div>
+        <button onClick={() => setMobileNavOpen((v) => !v)} className="text-white">
+          {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </div>
+
+      <div className="flex">
+        <aside
+          className={`
+            fixed md:static top-[52px] md:top-0 left-0 h-[calc(100vh-52px)] md:h-screen w-64 flex-shrink-0
+            flex flex-col z-20 transition-transform duration-200
+            ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
+          `}
+          style={{ background: NAVY_DEEP }}
+        >
+          <div className="hidden md:flex items-center gap-2 px-6 py-6 text-white font-display font-semibold text-lg">
+            <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
+              <span className="w-4 h-4 rounded-full" style={{ background: NAVY }} />
+            </span>
+            Zenithire <span className="text-xs font-mono opacity-40 font-normal">/ admin</span>
+          </div>
+
+          <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = active === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => { setActive(item.key); setMobileNavOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                  style={{
+                    background: isActive ? "rgba(212,175,55,0.14)" : "transparent",
+                    color: isActive ? GOLD_SOFT : "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  <Icon size={17} />
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.badge ? (
+                    <span className="text-xs font-semibold w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#D92D20", color: "white" }}>
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="px-4 py-5 mx-3 mb-4 rounded-xl flex items-center gap-3" style={{ background: "rgba(255,255,255,0.05)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center font-display font-semibold flex-shrink-0" style={{ background: GOLD, color: NAVY_DEEP }}>
+              A
+            </div>
+            <div className="min-w-0">
+              <div className="text-white text-sm font-medium truncate">Admin</div>
+              <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>admin@zenithire.com</div>
+            </div>
+          </div>
+        </aside>
+
+        {mobileNavOpen && (
+          <div className="fixed inset-0 bg-black/30 z-10 md:hidden" onClick={() => setMobileNavOpen(false)} />
+        )}
+
+        <main className="flex-1 min-w-0 p-5 md:p-10">
+          <ActiveView />
+        </main>
+      </div>
+    </div>
+  );
+}

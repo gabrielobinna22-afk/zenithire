@@ -1,0 +1,72 @@
+# Zenithire — Company Registration & Team Management
+
+Continues from prior modules. Expects `src/auth/`, `src/prisma/`, and
+`src/notifications/` to exist. Drop in `src/companies/`, register:
+
+```ts
+import { CompaniesModule } from './companies/companies.module';
+
+@Module({ imports: [/* ...existing */, CompaniesModule] })
+export class AppModule {}
+```
+
+This is the employer-side counterpart to the admin verification endpoints
+built earlier — `AdminCompaniesService.verify/reject/suspend` already
+existed; this module is what actually gets a `Company` row into the
+`PENDING` state for an admin to act on in the first place.
+
+## Endpoints
+
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/companies` | Register a company (creates it `PENDING`, caller becomes `OWNER`) |
+| GET | `/companies/me` | Your company (first membership found) |
+| PATCH | `/companies/:id` | Update profile/logo — **OWNER only** |
+| GET | `/companies/:id/members` | List team (OWNER or RECRUITER) |
+| POST | `/companies/:id/members` | Invite an existing employer account — **OWNER only** |
+| DELETE | `/companies/:id/members/:userId` | Remove a member — **OWNER only**, blocked if it would leave zero owners |
+
+## Design notes
+
+**Registering doesn't require anything to already exist.** Uploading a
+registration document (`registrationDocUrl`) follows the same pattern as
+video upload from the video module — get a presigned URL from the storage
+service, upload directly, pass the resulting URL here. This module
+doesn't re-implement that; it assumes the URL already exists.
+
+**Slug collisions retry instead of failing.** Two unrelated companies
+both named "Northbridge Capital" shouldn't mean the second one can't
+register — `register()` appends a numeric suffix until it finds a free
+slug, up to 20 attempts.
+
+**Profile edits are OWNER-only; job posting (from the jobs module) is
+any `CompanyMember`.** A recruiter you've added to help manage postings
+can create and edit jobs, but can't change the company's name, logo, or
+description — that distinction is deliberate, not an oversight.
+
+**Removing the last owner is blocked.** A company can't end up with zero
+owners through this endpoint — `removeMember` checks the owner count
+before letting an owner remove themselves.
+
+## What this module doesn't cover (flagged, not silent)
+
+- **Team invite is instant, not an actual invitation flow.** Adding
+  someone by email immediately grants access if they already have an
+  EMPLOYER account — there's no pending-invite state, no accept/decline,
+  and no path for inviting someone who doesn't have an account yet
+  (that would need an invite-by-email-with-signup-link flow).
+- **Notification type reuse.** The team-invite notification reuses the
+  `COMPANY_VERIFIED` notification type since a dedicated `TEAM_INVITE`
+  type isn't in the schema — flagged in a code comment, not hidden. Add
+  the enum value if this needs to render differently in the UI.
+- **Registration document review.** Admins can see a company is
+  `PENDING`, but nothing here surfaces `registrationDocUrl` in a
+  dedicated review UI beyond what the admin companies list already
+  returns.
+
+## Suggested next piece
+
+Candidate profile management (education, work experience, certifications,
+skills, industries CRUD + profile completion recalculation) — the
+candidate-side counterpart to this module, and the last major API surface
+before every screen in both dashboards is backed by real data.

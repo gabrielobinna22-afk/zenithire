@@ -1,0 +1,319 @@
+'use client';
+
+import React, { useState } from "react";
+import {
+  Building2,
+  Upload,
+  Globe,
+  MapPin,
+  FileText,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Users,
+  Plus,
+  Trash2,
+  Shield,
+  ArrowRight,
+} from "lucide-react";
+
+const NAVY = "#0B1F3A";
+const NAVY_DEEP = "#071427";
+const GOLD = "#D4AF37";
+const GOLD_SOFT = "#E8CD7A";
+const IVORY = "#FBF8F0";
+const GRAY_BG = "#F5F6F8";
+
+const FONTS = (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    .font-display { font-family: 'Fraunces', serif; }
+    .font-mono { font-family: 'IBM Plex Mono', monospace; }
+    .font-body { font-family: 'Inter', sans-serif; }
+  `}</style>
+);
+
+function Label({ children }) {
+  return <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#9AA3AF" }}>{children}</label>;
+}
+
+function Input({ icon: Icon, value, onChange, placeholder }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border px-4 py-3 bg-white mt-1.5" style={{ borderColor: "rgba(11,31,58,0.14)" }}>
+      {Icon && <Icon size={15} style={{ color: "#9AA3AF" }} />}
+      <input
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="flex-1 outline-none text-sm bg-transparent font-body"
+        style={{ color: NAVY }}
+      />
+    </div>
+  );
+}
+
+function TextArea({ value, onChange, placeholder }) {
+  return (
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full mt-1.5 rounded-xl border px-4 py-3 text-sm outline-none font-body resize-none bg-white"
+      style={{ borderColor: "rgba(11,31,58,0.14)", color: NAVY }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Registration form (pre-company-exists state)
+// ---------------------------------------------------------------------------
+
+function RegistrationForm({ onSubmit }) {
+  const [form, setForm] = useState({
+    name: "", description: "", website: "", industryTag: "", city: "", country: "",
+  });
+  const [docUploaded, setDocUploaded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const submit = (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    // POST /companies { ...form, registrationDocUrl }
+    setTimeout(() => { setSubmitting(false); onSubmit(form); }, 900);
+  };
+
+  return (
+    <div className="min-h-screen font-body flex items-center justify-center p-6" style={{ background: GRAY_BG }}>
+      {FONTS}
+      <div className="w-full max-w-lg">
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4" style={{ background: NAVY }}>
+            <Building2 size={22} style={{ color: GOLD }} />
+          </div>
+          <h1 className="font-display text-2xl font-semibold" style={{ color: NAVY }}>Register your company</h1>
+          <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+            Tell us about your company. An admin will review and verify it before your jobs go live.
+          </p>
+        </div>
+
+        <form onSubmit={submit} className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 md:p-7 space-y-5">
+          <div>
+            <Label>Company name</Label>
+            <Input icon={Building2} value={form.name} onChange={set("name")} placeholder="Northbridge Capital" />
+          </div>
+
+          <div>
+            <Label>Description</Label>
+            <TextArea value={form.description} onChange={set("description")} placeholder="What does your company do?" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Website</Label>
+              <Input icon={Globe} value={form.website} onChange={set("website")} placeholder="https://..." />
+            </div>
+            <div>
+              <Label>Industry</Label>
+              <Input value={form.industryTag} onChange={set("industryTag")} placeholder="Financial Services" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>City</Label>
+              <Input icon={MapPin} value={form.city} onChange={set("city")} placeholder="Lagos" />
+            </div>
+            <div>
+              <Label>Country</Label>
+              <Input value={form.country} onChange={set("country")} placeholder="Nigeria" />
+            </div>
+          </div>
+
+          <div>
+            <Label>Registration document</Label>
+            <button
+              type="button"
+              onClick={() => setDocUploaded(true)}
+              className="w-full mt-1.5 flex items-center justify-center gap-2 border-2 border-dashed rounded-xl py-6 text-sm font-medium transition-colors"
+              style={{ borderColor: docUploaded ? "#15803D" : "rgba(11,31,58,0.18)", color: docUploaded ? "#15803D" : "#9AA3AF" }}
+            >
+              {docUploaded ? <CheckCircle2 size={16} /> : <FileText size={16} />}
+              {docUploaded ? "cac_certificate.pdf uploaded" : "Upload CAC certificate or business registration"}
+            </button>
+            <p className="text-xs text-gray-400 mt-1.5">Speeds up verification, but isn't required to submit.</p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={submitting || !form.name}
+            className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+            style={{ background: GOLD, color: NAVY_DEEP, opacity: submitting || !form.name ? 0.6 : 1 }}
+          >
+            {submitting ? "Submitting..." : "Submit for verification"} {!submitting && <ArrowRight size={15} />}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Post-registration: status + profile + team
+// ---------------------------------------------------------------------------
+
+const STATUS_CONFIG = {
+  PENDING: { icon: Clock, bg: "#FBF3DC", fg: "#92720C", label: "Verification pending", desc: "An admin is reviewing your submission. This usually takes 1–2 business days." },
+  VERIFIED: { icon: CheckCircle2, bg: "#E7F6EC", fg: "#15803D", label: "Verified", desc: "Your company is verified and your jobs are visible to candidates." },
+  REJECTED: { icon: XCircle, bg: "#FBEAEA", fg: "#B42318", label: "Verification rejected", desc: "Update your details below and resubmit." },
+};
+
+function StatusBanner({ status, reason }) {
+  const cfg = STATUS_CONFIG[status];
+  const Icon = cfg.icon;
+  return (
+    <div className="rounded-2xl p-5 flex items-start gap-4 mb-8" style={{ background: cfg.bg }}>
+      <Icon size={20} style={{ color: cfg.fg }} className="flex-shrink-0 mt-0.5" />
+      <div>
+        <div className="text-sm font-semibold" style={{ color: cfg.fg }}>{cfg.label}</div>
+        <p className="text-sm mt-1" style={{ color: cfg.fg, opacity: 0.85 }}>{reason || cfg.desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function TeamSection({ members, setMembers, currentUserEmail }) {
+  const [inviteEmail, setInviteEmail] = useState("");
+
+  const invite = () => {
+    if (!inviteEmail.trim()) return;
+    setMembers([...members, { id: crypto.randomUUID(), email: inviteEmail, role: "RECRUITER" }]);
+    setInviteEmail("");
+  };
+
+  const remove = (id) => setMembers(members.filter((m) => m.id !== id));
+  const owners = members.filter((m) => m.role === "OWNER").length;
+
+  return (
+    <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 md:p-7">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <div className="font-mono text-xs uppercase tracking-wider mb-1" style={{ color: GOLD }}>Recruiting team</div>
+          <h3 className="font-display text-lg font-semibold" style={{ color: NAVY }}>Team members</h3>
+        </div>
+        <Users size={18} style={{ color: "#9AA3AF" }} />
+      </div>
+
+      <div className="flex gap-2 mb-5">
+        <input
+          value={inviteEmail}
+          onChange={(e) => setInviteEmail(e.target.value)}
+          placeholder="colleague@company.com"
+          className="flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none"
+          style={{ borderColor: "rgba(11,31,58,0.14)", color: NAVY }}
+        />
+        <button onClick={invite} className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>
+          <Plus size={13} /> Invite
+        </button>
+      </div>
+      <p className="text-xs text-gray-400 mb-5">Must already have a Zenithire employer account. They'll get access immediately.</p>
+
+      <div className="space-y-2">
+        {members.map((m) => (
+          <div key={m.id} className="flex items-center justify-between p-3.5 rounded-xl" style={{ background: GRAY_BG }}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-semibold text-xs flex-shrink-0" style={{ background: IVORY, color: GOLD }}>
+                {m.email[0].toUpperCase()}
+              </div>
+              <div>
+                <div className="text-sm font-medium" style={{ color: NAVY }}>{m.email}</div>
+                {m.email === currentUserEmail && <div className="text-xs text-gray-400">You</div>}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span
+                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+                style={{ background: m.role === "OWNER" ? "rgba(212,175,55,0.15)" : "white", color: m.role === "OWNER" ? GOLD : "#5b6572" }}
+              >
+                {m.role === "OWNER" && <Shield size={11} />} {m.role}
+              </span>
+              {!(m.role === "OWNER" && owners <= 1) && (
+                <button onClick={() => remove(m.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CompanyProfileForm({ company, setCompany }) {
+  const set = (k) => (e) => setCompany({ ...company, [k]: e.target.value });
+  return (
+    <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 md:p-7 mb-6">
+      <div className="font-mono text-xs uppercase tracking-wider mb-1" style={{ color: GOLD }}>Company profile</div>
+      <h3 className="font-display text-lg font-semibold mb-5" style={{ color: NAVY }}>{company.name}</h3>
+
+      <div className="flex items-center gap-4 mb-5">
+        <div className="w-14 h-14 rounded-xl flex items-center justify-center font-display font-semibold flex-shrink-0" style={{ background: NAVY, color: GOLD_SOFT }}>
+          {company.name[0]}
+        </div>
+        <button className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-full border border-gray-200">
+          <Upload size={13} /> Upload logo
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <Label>Description</Label>
+          <TextArea value={company.description} onChange={set("description")} placeholder="What does your company do?" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Website</Label>
+            <Input icon={Globe} value={company.website} onChange={set("website")} placeholder="https://..." />
+          </div>
+          <div>
+            <Label>Industry</Label>
+            <Input value={company.industryTag} onChange={set("industryTag")} placeholder="Financial Services" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export default function CompanyRegistration() {
+  const [registered, setRegistered] = useState(true); // toggle to false to see the registration form
+  const [status] = useState("PENDING"); // PENDING | VERIFIED | REJECTED
+  const [company, setCompany] = useState({
+    name: "New Venture Logistics",
+    description: "Early-stage logistics startup connecting last-mile couriers with SMEs.",
+    website: "https://newventurelogistics.com",
+    industryTag: "Supply Chain",
+  });
+  const [members, setMembers] = useState([
+    { id: "1", email: "founder@newventure.com", role: "OWNER" },
+  ]);
+
+  if (!registered) {
+    return <RegistrationForm onSubmit={(form) => { setCompany({ ...company, ...form }); setRegistered(true); }} />;
+  }
+
+  return (
+    <div className="min-h-screen font-body py-10 px-5 md:px-8" style={{ background: GRAY_BG }}>
+      {FONTS}
+      <div className="max-w-2xl mx-auto">
+        <h1 className="font-display text-2xl font-semibold mb-6" style={{ color: NAVY }}>Your company</h1>
+        <StatusBanner status={status} />
+        <CompanyProfileForm company={company} setCompany={setCompany} />
+        <TeamSection members={members} setMembers={setMembers} currentUserEmail="founder@newventure.com" />
+      </div>
+    </div>
+  );
+}

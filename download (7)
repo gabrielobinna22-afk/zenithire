@@ -1,0 +1,502 @@
+'use client';
+
+import React, { useState } from "react";
+import {
+  User,
+  GraduationCap,
+  Briefcase,
+  Award,
+  Sparkles,
+  Video,
+  Plus,
+  Trash2,
+  X,
+  Play,
+  Upload,
+  Check,
+} from "lucide-react";
+
+const NAVY = "#0B1F3A";
+const NAVY_DEEP = "#071427";
+const GOLD = "#D4AF37";
+const GOLD_SOFT = "#E8CD7A";
+const IVORY = "#FBF8F0";
+const GRAY_BG = "#F5F6F8";
+
+const FONTS = (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    .font-display { font-family: 'Fraunces', serif; }
+    .font-mono { font-family: 'IBM Plex Mono', monospace; }
+    .font-body { font-family: 'Inter', sans-serif; }
+  `}</style>
+);
+
+const SECTIONS = [
+  { key: "basics", label: "Basic Info", icon: User },
+  { key: "education", label: "Education", icon: GraduationCap },
+  { key: "experience", label: "Work Experience", icon: Briefcase },
+  { key: "certifications", label: "Certifications", icon: Award },
+  { key: "skills", label: "Skills & Industries", icon: Sparkles },
+  { key: "video", label: "Introduction Video", icon: Video },
+];
+
+// ---------------------------------------------------------------------------
+
+function Label({ children }) {
+  return <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#9AA3AF" }}>{children}</label>;
+}
+
+function Input({ value, onChange, placeholder, type = "text" }) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="w-full mt-1.5 rounded-xl border px-4 py-2.5 text-sm outline-none font-body"
+      style={{ borderColor: "rgba(11,31,58,0.14)", color: NAVY }}
+    />
+  );
+}
+
+function TextArea({ value, onChange, placeholder, rows = 4 }) {
+  return (
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full mt-1.5 rounded-xl border px-4 py-2.5 text-sm outline-none font-body resize-none"
+      style={{ borderColor: "rgba(11,31,58,0.14)", color: NAVY }}
+    />
+  );
+}
+
+function Card({ title, kicker, children, action }) {
+  return (
+    <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 md:p-7">
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          {kicker && <div className="font-mono text-xs uppercase tracking-wider mb-1" style={{ color: GOLD }}>{kicker}</div>}
+          <h3 className="font-display text-lg font-semibold" style={{ color: NAVY }}>{title}</h3>
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SaveBar({ dirty, onSave }) {
+  if (!dirty) return null;
+  return (
+    <div className="sticky bottom-4 flex justify-center z-20 mt-4">
+      <div className="flex items-center gap-4 rounded-full px-5 py-3 shadow-lg" style={{ background: NAVY }}>
+        <span className="text-xs text-white/70">You have unsaved changes</span>
+        <button onClick={onSave} className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>
+          <Check size={13} /> Save changes
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function BasicsSection({ data, setData }) {
+  return (
+    <Card title="Basic Info" kicker="How employers see you">
+      <div className="grid md:grid-cols-2 gap-5">
+        <div className="md:col-span-2 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center font-display font-semibold text-xl flex-shrink-0" style={{ background: IVORY, color: GOLD }}>
+            {data.fullName.split(" ").map((p) => p[0]).join("").slice(0, 2) || "?"}
+          </div>
+          <button className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-full border border-gray-200">
+            <Upload size={13} /> Upload photo
+          </button>
+        </div>
+
+        <div>
+          <Label>Full name</Label>
+          <Input value={data.fullName} onChange={(e) => setData({ ...data, fullName: e.target.value })} placeholder="Amaka Obi" />
+        </div>
+        <div>
+          <Label>Headline</Label>
+          <Input value={data.headline} onChange={(e) => setData({ ...data, headline: e.target.value })} placeholder="Financial Analyst · 5 yrs experience" />
+        </div>
+
+        <div className="md:col-span-2">
+          <Label>Bio</Label>
+          <TextArea value={data.bio} onChange={(e) => setData({ ...data, bio: e.target.value })} placeholder="A couple of sentences about your background and what you're looking for." />
+        </div>
+
+        <div>
+          <Label>City</Label>
+          <Input value={data.city} onChange={(e) => setData({ ...data, city: e.target.value })} placeholder="Lagos" />
+        </div>
+        <div>
+          <Label>Country</Label>
+          <Input value={data.country} onChange={(e) => setData({ ...data, country: e.target.value })} placeholder="Nigeria" />
+        </div>
+
+        <div>
+          <Label>Expected salary min (₦/mo)</Label>
+          <Input type="number" value={data.expectedSalaryMin} onChange={(e) => setData({ ...data, expectedSalaryMin: e.target.value })} placeholder="500000" />
+        </div>
+        <div>
+          <Label>Expected salary max (₦/mo)</Label>
+          <Input type="number" value={data.expectedSalaryMax} onChange={(e) => setData({ ...data, expectedSalaryMax: e.target.value })} placeholder="700000" />
+        </div>
+
+        <label className="md:col-span-2 flex items-center gap-2.5 text-sm mt-1" style={{ color: NAVY }}>
+          <input
+            type="checkbox"
+            checked={data.openToRemote}
+            onChange={(e) => setData({ ...data, openToRemote: e.target.checked })}
+            className="w-4 h-4 rounded"
+          />
+          Open to remote roles
+        </label>
+      </div>
+    </Card>
+  );
+}
+
+function ListEditor({ title, kicker, items, setItems, emptyLabel, renderForm, renderSummary, emptyDraft }) {
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState(emptyDraft);
+
+  const startAdd = () => {
+    setDraft(emptyDraft);
+    setEditingId("new");
+  };
+  const startEdit = (item) => {
+    setDraft(item);
+    setEditingId(item.id);
+  };
+  const cancel = () => setEditingId(null);
+
+  const save = () => {
+    if (editingId === "new") {
+      setItems([...items, { ...draft, id: crypto.randomUUID() }]);
+    } else {
+      setItems(items.map((i) => (i.id === editingId ? draft : i)));
+    }
+    setEditingId(null);
+  };
+
+  const remove = (id) => setItems(items.filter((i) => i.id !== id));
+
+  return (
+    <Card
+      title={title}
+      kicker={kicker}
+      action={
+        <button onClick={startAdd} className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full" style={{ background: IVORY, color: GOLD }}>
+          <Plus size={13} /> Add
+        </button>
+      }
+    >
+      <div className="space-y-3">
+        {items.length === 0 && editingId !== "new" && (
+          <p className="text-sm text-gray-400 italic py-4 text-center">{emptyLabel}</p>
+        )}
+        {items.map((item) =>
+          editingId === item.id ? (
+            <div key={item.id} className="rounded-xl border-2 p-4" style={{ borderColor: GOLD, background: IVORY }}>
+              {renderForm(draft, setDraft)}
+              <div className="flex gap-2 mt-4">
+                <button onClick={save} className="text-xs font-semibold px-4 py-2 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>Save</button>
+                <button onClick={cancel} className="text-xs font-semibold px-4 py-2 rounded-full border border-gray-200">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div key={item.id} className="flex items-start justify-between gap-3 p-4 rounded-xl" style={{ background: GRAY_BG }}>
+              {renderSummary(item)}
+              <div className="flex gap-2 flex-shrink-0">
+                <button onClick={() => startEdit(item)} className="text-xs font-semibold" style={{ color: GOLD }}>Edit</button>
+                <button onClick={() => remove(item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          )
+        )}
+        {editingId === "new" && (
+          <div className="rounded-xl border-2 p-4" style={{ borderColor: GOLD, background: IVORY }}>
+            {renderForm(draft, setDraft)}
+            <div className="flex gap-2 mt-4">
+              <button onClick={save} className="text-xs font-semibold px-4 py-2 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>Add</button>
+              <button onClick={cancel} className="text-xs font-semibold px-4 py-2 rounded-full border border-gray-200">Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function EducationSection({ items, setItems }) {
+  return (
+    <ListEditor
+      title="Education"
+      kicker="Where you studied"
+      items={items}
+      setItems={setItems}
+      emptyLabel="No education added yet"
+      emptyDraft={{ institution: "", degree: "", fieldOfStudy: "", startDate: "", endDate: "", isOngoing: false }}
+      renderForm={(d, set) => (
+        <div className="grid md:grid-cols-2 gap-3">
+          <Input value={d.institution} onChange={(e) => set({ ...d, institution: e.target.value })} placeholder="Institution" />
+          <Input value={d.degree} onChange={(e) => set({ ...d, degree: e.target.value })} placeholder="Degree (BSc, MSc...)" />
+          <Input value={d.fieldOfStudy} onChange={(e) => set({ ...d, fieldOfStudy: e.target.value })} placeholder="Field of study" />
+          <div className="flex gap-2">
+            <Input type="date" value={d.startDate} onChange={(e) => set({ ...d, startDate: e.target.value })} placeholder="Start" />
+            <Input type="date" value={d.endDate} onChange={(e) => set({ ...d, endDate: e.target.value })} placeholder="End" />
+          </div>
+        </div>
+      )}
+      renderSummary={(item) => (
+        <div>
+          <div className="text-sm font-semibold" style={{ color: NAVY }}>{item.degree || "Degree"} — {item.institution || "Institution"}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{item.fieldOfStudy} {item.startDate && `· ${item.startDate.slice(0, 4)}–${item.endDate ? item.endDate.slice(0, 4) : "present"}`}</div>
+        </div>
+      )}
+    />
+  );
+}
+
+function ExperienceSection({ items, setItems }) {
+  return (
+    <ListEditor
+      title="Work Experience"
+      kicker="What you've done"
+      items={items}
+      setItems={setItems}
+      emptyLabel="No work experience added yet"
+      emptyDraft={{ company: "", title: "", description: "", startDate: "", endDate: "", isCurrent: false }}
+      renderForm={(d, set) => (
+        <div className="grid md:grid-cols-2 gap-3">
+          <Input value={d.title} onChange={(e) => set({ ...d, title: e.target.value })} placeholder="Job title" />
+          <Input value={d.company} onChange={(e) => set({ ...d, company: e.target.value })} placeholder="Company" />
+          <div className="md:col-span-2">
+            <TextArea value={d.description} onChange={(e) => set({ ...d, description: e.target.value })} placeholder="What did you work on?" rows={3} />
+          </div>
+          <Input type="date" value={d.startDate} onChange={(e) => set({ ...d, startDate: e.target.value })} placeholder="Start" />
+          <Input type="date" value={d.endDate} onChange={(e) => set({ ...d, endDate: e.target.value })} placeholder="End" disabled={d.isCurrent} />
+          <label className="flex items-center gap-2 text-sm md:col-span-2" style={{ color: NAVY }}>
+            <input type="checkbox" checked={d.isCurrent} onChange={(e) => set({ ...d, isCurrent: e.target.checked })} className="w-4 h-4" />
+            I currently work here
+          </label>
+        </div>
+      )}
+      renderSummary={(item) => (
+        <div>
+          <div className="text-sm font-semibold" style={{ color: NAVY }}>{item.title || "Title"} — {item.company || "Company"}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{item.startDate && item.startDate.slice(0, 4)}–{item.isCurrent ? "present" : (item.endDate ? item.endDate.slice(0, 4) : "")}</div>
+        </div>
+      )}
+    />
+  );
+}
+
+function CertificationsSection({ items, setItems }) {
+  return (
+    <ListEditor
+      title="Certifications"
+      kicker="Credentials that back you up"
+      items={items}
+      setItems={setItems}
+      emptyLabel="No certifications added yet"
+      emptyDraft={{ name: "", issuer: "", issuedAt: "" }}
+      renderForm={(d, set) => (
+        <div className="grid md:grid-cols-2 gap-3">
+          <Input value={d.name} onChange={(e) => set({ ...d, name: e.target.value })} placeholder="Certification name" />
+          <Input value={d.issuer} onChange={(e) => set({ ...d, issuer: e.target.value })} placeholder="Issuing body" />
+          <Input type="date" value={d.issuedAt} onChange={(e) => set({ ...d, issuedAt: e.target.value })} placeholder="Issued" />
+        </div>
+      )}
+      renderSummary={(item) => (
+        <div>
+          <div className="text-sm font-semibold" style={{ color: NAVY }}>{item.name || "Certification"}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{item.issuer}</div>
+        </div>
+      )}
+    />
+  );
+}
+
+function TagInput({ label, values, setValues, placeholder, max }) {
+  const [draft, setDraft] = useState("");
+
+  const add = () => {
+    const v = draft.trim();
+    if (v && !values.includes(v) && values.length < max) {
+      setValues([...values, v]);
+      setDraft("");
+    }
+  };
+
+  return (
+    <div>
+      <Label>{label} ({values.length}/{max})</Label>
+      <div className="flex flex-wrap gap-2 mt-2 mb-2">
+        {values.map((v) => (
+          <span key={v} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: IVORY, color: NAVY }}>
+            {v}
+            <button onClick={() => setValues(values.filter((x) => x !== v))}><X size={12} /></button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
+          placeholder={placeholder}
+          className="flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none"
+          style={{ borderColor: "rgba(11,31,58,0.14)", color: NAVY }}
+        />
+        <button onClick={add} className="text-xs font-semibold px-4 py-2 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+function SkillsSection({ skills, setSkills, industries, setIndustries }) {
+  return (
+    <Card title="Skills & Industries" kicker="What you're good at, and where">
+      <div className="space-y-6">
+        <TagInput label="Skills" values={skills} setValues={setSkills} placeholder="e.g. Excel, Node.js, Figma" max={30} />
+        <TagInput label="Industries" values={industries} setValues={setIndustries} placeholder="e.g. Financial Services" max={10} />
+      </div>
+    </Card>
+  );
+}
+
+function VideoSection() {
+  const status = "APPROVED"; // PROCESSING | PENDING_REVIEW | APPROVED | REJECTED
+  const statusStyle = {
+    PROCESSING: { bg: "#EEF0F3", fg: "#5b6572", label: "Processing" },
+    PENDING_REVIEW: { bg: "#FBF3DC", fg: "#92720C", label: "Pending review" },
+    APPROVED: { bg: "#E7F6EC", fg: "#15803D", label: "Approved" },
+    REJECTED: { bg: "#FBEAEA", fg: "#B42318", label: "Rejected" },
+  }[status];
+
+  return (
+    <Card title="Introduction Video" kicker="Your 60-second pitch" action={
+      <span className="text-xs font-semibold px-3 py-1 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.fg }}>{statusStyle.label}</span>
+    }>
+      <div className="rounded-xl aspect-video max-w-md flex items-center justify-center relative overflow-hidden mb-4" style={{ background: `linear-gradient(135deg, #12294d, ${NAVY})` }}>
+        <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
+          <Play size={20} style={{ color: NAVY_DEEP, marginLeft: 2 }} />
+        </div>
+        <span className="absolute bottom-3 right-3 font-mono text-xs text-white/80">0:58</span>
+      </div>
+      <div className="flex gap-3">
+        <button className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full" style={{ background: GOLD, color: NAVY_DEEP }}>
+          <Upload size={14} /> Replace video
+        </button>
+        <button className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full border border-gray-200">
+          Record new
+        </button>
+      </div>
+      <p className="text-xs text-gray-400 mt-4 max-w-md">
+        Max 60 seconds. Your current video stays visible to employers while a replacement is being reviewed.
+      </p>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export default function CandidateProfileEdit() {
+  const [active, setActive] = useState("basics");
+  const [dirty, setDirty] = useState(false);
+
+  const [basics, setBasicsRaw] = useState({
+    fullName: "Amaka Obi",
+    headline: "Financial Analyst · 5 yrs experience",
+    bio: "Financial analyst with a track record of building models that hold up under scrutiny.",
+    city: "Lagos",
+    country: "Nigeria",
+    expectedSalaryMin: "500000",
+    expectedSalaryMax: "700000",
+    openToRemote: false,
+  });
+  const [education, setEducationRaw] = useState([
+    { id: "1", institution: "University of Lagos", degree: "BSc", fieldOfStudy: "Economics", startDate: "2015-09-01", endDate: "2019-07-01" },
+  ]);
+  const [experience, setExperienceRaw] = useState([
+    { id: "1", company: "Stanbic IBTC", title: "Financial Analyst", description: "Built monthly forecasting models.", startDate: "2020-02-01", isCurrent: true },
+  ]);
+  const [certifications, setCertificationsRaw] = useState([]);
+  const [skills, setSkillsRaw] = useState(["Excel", "Power BI", "FP&A"]);
+  const [industries, setIndustriesRaw] = useState(["Financial Services"]);
+
+  const wrap = (setter) => (val) => { setter(val); setDirty(true); };
+  const setBasics = wrap(setBasicsRaw);
+  const setEducation = wrap(setEducationRaw);
+  const setExperience = wrap(setExperienceRaw);
+  const setCertifications = wrap(setCertificationsRaw);
+  const setSkills = wrap(setSkillsRaw);
+  const setIndustries = wrap(setIndustriesRaw);
+
+  const handleSave = () => {
+    // PATCH /candidates/me, PUT /candidates/me/skills, etc.
+    setDirty(false);
+  };
+
+  return (
+    <div className="min-h-screen font-body pb-24" style={{ background: GRAY_BG }}>
+      {FONTS}
+      <div className="max-w-5xl mx-auto px-5 md:px-8 pt-10">
+        <h1 className="font-display text-2xl font-semibold" style={{ color: NAVY }}>Edit your profile</h1>
+        <p className="text-sm text-gray-500 mt-1.5 mb-8">Changes save to your completion score immediately.</p>
+
+        <div className="flex gap-8">
+          <nav className="hidden md:flex flex-col gap-1 w-52 flex-shrink-0 sticky top-10 self-start">
+            {SECTIONS.map((s) => {
+              const Icon = s.icon;
+              const isActive = active === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setActive(s.key)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition-colors"
+                  style={{ background: isActive ? IVORY : "transparent", color: isActive ? NAVY : "#5b6572" }}
+                >
+                  <Icon size={15} style={{ color: isActive ? GOLD : "#9AA3AF" }} />
+                  {s.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex-1 min-w-0">
+            {/* Mobile section tabs */}
+            <div className="flex md:hidden gap-2 overflow-x-auto pb-4 -mx-1 px-1">
+              {SECTIONS.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setActive(s.key)}
+                  className="flex-shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full"
+                  style={{ background: active === s.key ? NAVY : "white", color: active === s.key ? "white" : "#5b6572" }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {active === "basics" && <BasicsSection data={basics} setData={setBasics} />}
+            {active === "education" && <EducationSection items={education} setItems={setEducation} />}
+            {active === "experience" && <ExperienceSection items={experience} setItems={setExperience} />}
+            {active === "certifications" && <CertificationsSection items={certifications} setItems={setCertifications} />}
+            {active === "skills" && <SkillsSection skills={skills} setSkills={setSkills} industries={industries} setIndustries={setIndustries} />}
+            {active === "video" && <VideoSection />}
+          </div>
+        </div>
+      </div>
+      <SaveBar dirty={dirty} onSave={handleSave} />
+    </div>
+  );
+}

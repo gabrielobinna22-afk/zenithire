@@ -1,0 +1,4 @@
+# Base URL of the Zenithire API (see ../backend). Every mock fetch call
+# marked with a comment like "// POST /auth/login" in the page components
+# should point here once wired up.
+NEXT_PUBLIC_API_URL="http://localhost:3000"
