@@ -1,0 +1,7 @@
+import { SetMetadata } from '@nestjs/common';
+
+export const IS_PUBLIC_KEY = 'isPublic';
+
+// Usage: @Public() above a controller method to skip authentication —
+// e.g. register, login, forgot-password, verify-email.
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
